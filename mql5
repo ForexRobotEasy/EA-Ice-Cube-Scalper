@@ -1,0 +1,140 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                           EA Ice Cube Scalper.mq5|
+//|                       Copyright 2022, Forex Robot Easy Team      |
+//|                        https://www.forexroboteasy.com             |
+//+------------------------------------------------------------------+
+//|                        Terms of Reference                          |
+//|------------------------------------------------------------------|
+//| 1. Develop a Forex trading software, EA Ice Cube Scalper, that    |
+//|    uses the RSI indicator to follow the trend and execute scalping|
+//|    trades.                                                        |
+//| 2. The software should make multiple trades daily and aim to take |
+//|    several points with each transaction.                          |
+//| 3. Implement a scalping strategy based on trend trading, using    |
+//|    the RSI indicator to identify the trend and make trading       |
+//|    decisions.                                                     |
+//| 4. Incorporate a concept of averaging with a lot multiplier into  |
+//|    the software's strategy.                                       |
+//| 5. Ensure the software has risk control measures in place to limit|
+//|    the maximum number of orders for averaging and equity risk.    |
+//| 6. Perform backtesting to assess the software's performance and   |
+//|    make necessary adjustments.                                    |
+//| 7. Develop the necessary trading functions with proper integration|
+//|    of the RSI indicator, calculation of lot sizes, implementation |
+//|    of averaging with a lot multiplier, risk control measures, and |
+//|    backtesting functionality.                                     |
+//| 8. Ensure the code is well-documented and follows best coding      |
+//|    practices for maintainability and future enhancements.         |
+//| 9. The terms of reference should not exceed 1500-2000 characters. |
+//+------------------------------------------------------------------+
+
+// Include necessary libraries and define constants
+#include <Trade\PositionInfo.mqh>
+#include <Indicators\Trend.mqh>
+
+const double initialLotSize = 0.01; // Initial lot size for scalping trades
+const double multiplier = 2.0; // Multiplier for averaging lot size
+const int maxOrders = 5; // Maximum number of orders for averaging
+const double maxEquityRisk = 0.05; // Maximum equity risk percentage
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                     Expert Advisor Functions                      |
+//|                                                                  |
+//+------------------------------------------------------------------+
+
+// Function to calculate lot size based on available balance
+double CalculateLotSize()
+{
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double lotSize = balance * maxEquityRisk / 100.0;
+   return NormalizeDouble(lotSize, 2);
+}
+
+// Function to execute scalping trades
+void ExecuteScalping()
+{
+   double lotSize = CalculateLotSize();
+   double currentRsi = iRSI(NULL, 0, 14, PRICE_CLOSE, 0);
+   double previousRsi = iRSI(NULL, 0, 14, PRICE_CLOSE, 1);
+   
+   // Check for trend reversal
+   if (currentRsi > 70 && previousRsi <= 70)
+   {
+      // Open a buy order
+      double price = Ask;
+      double stopLoss = price - 50 * Point;
+      double takeProfit = price + 100 * Point;
+      int ticket = OrderSend(Symbol(), OP_BUY, lotSize, price, 0, stopLoss, takeProfit, 'IceCubeScalper', 0, 0, Green);
+      if (ticket > 0)
+      {
+         Print('Buy order opened successfully');
+      }
+      else
+      {
+         Print('Error opening buy order: ', GetLastError());
+      }
+   }
+   else if (currentRsi < 30 && previousRsi >= 30)
+   {
+      // Open a sell order
+      double price = Bid;
+      double stopLoss = price + 50 * Point;
+      double takeProfit = price - 100 * Point;
+      int ticket = OrderSend(Symbol(), OP_SELL, lotSize, price, 0, stopLoss, takeProfit, 'IceCubeScalper', 0, 0, Red);
+      if (ticket > 0)
+      {
+         Print('Sell order opened successfully');
+      }
+      else
+      {
+         Print('Error opening sell order: ', GetLastError());
+      }
+   }
+}
+
+// Function to perform averaging
+void PerformAveraging()
+{
+   int totalOrders = PositionGetInteger(POSITION_TOTAL);
+   if (totalOrders < maxOrders)
+   {
+      double currentLotSize = CalculateLotSize();
+      double averageLotSize = NormalizeDouble(currentLotSize * multiplier, 2);
+      double price = PositionGetDouble(POSITION_PRICE_OPEN);
+      double stopLoss = PositionGetDouble(POSITION_SL);
+      double takeProfit = PositionGetDouble(POSITION_TP);
+      int ticket = OrderSend(Symbol(), PositionGetInteger(POSITION_TYPE), averageLotSize, price, 0, stopLoss, takeProfit, 'IceCubeScalper', 0, 0, Yellow);
+      if (ticket > 0)
+      {
+         Print('Averaging order opened successfully');
+      }
+      else
+      {
+         Print('Error opening averaging order: ', GetLastError());
+      }
+   }
+}
+
+// Function to perform backtesting
+void PerformBacktesting()
+{
+   // Add backtesting code here
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                     Expert Advisor Start                          |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   ExecuteScalping();
+   PerformAveraging();
+}
+
+void OnStart()
+{
+   PerformBacktesting();
+}
